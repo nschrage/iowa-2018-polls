@@ -1,0 +1,233 @@
+---
+title: "Iowa Polling"
+author: "Niel Schrage"
+date: "4/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# load libraries
+
+library(gt)
+library(dplyr)
+library(ggplot2)
+library(forcats)
+library(ggthemes)
+library(knitr)
+library(scales)
+library(tidyverse)
+library(purrr)
+library(fs)
+
+# read in data
+
+ia03 <- read_csv(file = "https://raw.githubusercontent.com/TheUpshot/2018-live-poll-results/master/data/elections-poll-ia03-3.csv") 
+
+ia04 <- read_csv(file = "https://raw.githubusercontent.com/TheUpshot/2018-live-poll-results/master/data/elections-poll-ia04-3.csv") 
+
+
+
+```
+
+```{r data4, echo=FALSE, message=FALSE, warning=FALSE}
+ 
+# after looking at the nyt reporting for a bit, I decided I wanted to see the
+# district that Rep. Steve King was from. King maintained his seat during the
+# primary, but after white-nationalistic #comments has been sidelined from house
+# committee duties interestingly enough, King's district is IA04, and the rest
+# of the problem set is IA03 -- wanted to the how my graphic would compare to
+# the other district, so I included it as well. important context: steve king is
+# the only republican in the Iowan House Delegation. --> this is where I started
+# thinking about my graphic Idea. after looking at a few different variables:
+# specifically one on reverse racisim (which wasn't asked in the IA03 data), I
+# settled on calcuating an approval rating, and displaying it as a bar chart by
+# age groups.
+
+# loaded data in from the z data frame I created in the setup chunk
+
+e.2<- ia04 %>% 
+  
+  # selected variables, more importantly: approve, ager, file_party, and final_weight
+  
+  select(REVERSERACIS, race_edu, file_party, final_weight, ager, approve) %>% 
+  
+  # filtered only respondents in either the democratic or republican party
+  
+  filter(file_party %in% c("Democratic", "Republican")) %>%
+  
+  # filtered out refused age question
+  
+  filter(ager != "[DO NOT READ] Refused") %>% 
+  
+  # grouped by age, approve, and file party
+  
+  group_by(ager, approve, file_party) %>% 
+  
+  # calculate final weight using the sum of the final weights
+  
+  summarize(total = sum(final_weight)) %>% 
+  
+  # spread the data by approve, with the value of the total of the final weights
+  
+  spread(key = approve, value = total, fill = 0) %>% 
+  
+  # ungrouped to make graph
+  
+  ungroup() %>%
+  
+  # calculated approval rating by adding all the different responses in approval
+  # into total calculated percentage by dividing number of approves by total
+  # number of responses.
+  
+  mutate(total = Approve + `Disapp.` + `Don't know`,
+         percentage = (Approve/total))   
+
+```
+
+```{r 04graphic, echo=FALSE}
+e.2 %>% 
+    
+  # created GGPlot, with x as age ranges, y as approve percentage. colored by party
+    
+  ggplot(aes(x = ager, y = percentage, fill = file_party)) +
+  
+  # putting the stat = "identity" makes it so I could but 2 variables in my bar
+  # chart, overrides default settings. dodge2 put the different parties side by
+  # side, allowing for a much easier comparison
+  
+  geom_bar(stat="identity", position = "dodge2") +
+ 
+  # added a title, subtitle, and a caption to my graph
+  
+  labs(title = "Presidential Approval Rating by Age and Party in Iowa's 4th",
+       subtitle = "Weighted calculations, n = 319",
+       caption = "Source: New York Times Upshot/Siena College 2018 live polls") +
+    
+  # after reading the healy book, I wanted to simplify my graph, so I removed
+  # the X and Y axis titles. because of the data I am using, and because I kept
+  # the axis labels intact, it is still very clear which axis is which.
+  
+  xlab(element_blank()) +
+  ylab(element_blank()) +
+  
+  # manually colored democrats blue and republicans red
+  
+  scale_fill_manual(breaks =c("Democratic","Republican"), values =c("blue", "red"))+
+  
+  # shrunk the title text down to fit graph
+  
+  theme(title = element_text(size=10)) +
+  
+  # decreased x axis label size to fit graph 
+  
+  theme(axis.text.x = element_text(size=7)) +
+  
+  # applied the economist theme (which I've become a huge fan of) simple, yet
+  # profressional
+  
+  theme_economist() + 
+  
+  # removed the title of the legend, much the the axises --> striving for
+  # simplicity without sacrificing clarity.
+  
+  guides(fill=guide_legend(title=NULL)) + 
+  
+  # made it so the y axis approval ratings had a percent. 
+  
+  scale_y_continuous(labels = percent)
+  
+```
+
+```{r 03data, echo=FALSE}
+e.3<- ia03 %>% 
+  
+  # selected variables, more importantly: approve, ager, file_party, and
+  # final_weight
+  
+  select(race_edu, file_party, final_weight, ager, approve) %>% 
+  
+  # filtered only respondents in either the democratic or republican party
+  
+  filter(file_party %in% c("Democratic", "Republican")) %>%
+  
+  # filtered out refused age question
+  
+  filter(ager != "[DO NOT READ] Refused") %>% 
+  
+  # group by age, approve, party
+  
+  group_by(ager, approve, file_party) %>% 
+  
+  # calculate final weight
+  
+  summarize(total = sum(final_weight)) %>% 
+  
+  # spread the data by approve, with the value of the total of the final weights
+  
+  spread(key = approve, value = total, fill = 0) %>% 
+  
+  # ungroped to make graph
+  
+  ungroup() %>%
+  
+  # calculating approval rating (see above) 
+  
+  mutate(total = Approve + `Disapp.` + `Don't know`,
+         percentage = (Approve/total))  
+  
+
+```
+
+```{r 03graphic, echo=FALSE}
+e.3 %>% 
+  
+  # created GGPlot, with x as age ranges, y as approve percentage. colored by party
+  
+  ggplot(aes(x = ager, y = percentage, fill = file_party)) +
+  
+  # putting the stat = "identity" makes it so I could but 2 variables in my bar
+  # chart, overrides default settings. dodge2 put the different parties side by
+  # side, allowing for a much easier comparison
+  
+  geom_bar(stat="identity", position = "dodge2") +
+  
+  # added a title, subtitle, and a caption to my graph
+  
+  labs(title = "Presidential Approval Rating by Age and Party in Iowa's 3rd",
+       subtitle = "Weighted calculations, n = 379",
+       caption = "Source: New York Times Upshot/Siena College 2018 live polls") +
+    
+  # after reading the healy book, I wanted to simplify my graph, so I removed
+  # the X and Y axis titles. because of the data I am using, and because I kept
+  # the axis labels intact, it is still very clear which axis is which.
+  
+  xlab(element_blank()) +
+  ylab(element_blank()) +
+  
+  # manually colored democrats blue and republicans red
+  
+  scale_fill_manual(breaks =c("Democratic","Republican"), values =c("blue", "red"))+
+  
+  # changed title text size
+  
+  theme(title = element_text(size=10)) +
+  theme(axis.text.x = element_text(size=7)) +
+  
+  # applied economist theme
+  
+  theme_economist() + 
+  
+  # removed the title of the legend, much the the axises --> striving for
+  # simplicity without sacrificing clarity.
+  
+  guides(fill=guide_legend(title=NULL)) + 
+  
+  # made it so the y axis approval ratings had a percent.
+  
+  scale_y_continuous(labels = percent)
+
+
+```
+
